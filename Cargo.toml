@@ -1,0 +1,20 @@
+[package]
+name = "rust-async-embed"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+cortex-m = { version = "0.7.7", features = ["critical-section-single-core"] }
+cortex-m-rt = "0.7.5"
+critical-section = "1.2.0"
+embedded-hal = "1.0.0"
+fugit = "0.3.7"
+microbit-v2 = "0.15.1"
+panic-halt = "1.0.0"
+rtt-target = "0.6.1"
+
+[[bin]]
+name = "rust-async-embed"
+test = false
+doctest = false
+bench = false
