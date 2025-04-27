@@ -13,7 +13,7 @@ use crate::button::{ButtonDirection, ButtonTask};
 use crate::channel::Channel;
 use crate::led::LedTask;
 use crate::task::Task;
-use crate::time::Ticker;
+use crate::time::{TICKER, Ticker};
 use cortex_m_rt::entry;
 use embedded_hal::digital::OutputPin;
 use microbit::Board;
@@ -22,8 +22,9 @@ use rtt_target::rtt_init_print;
 #[entry]
 fn main() -> ! {
     rtt_init_print!();
+    let mut board = Board::take().unwrap();
+    Ticker::init(board.RTC0, &mut board.NVIC);
 
-    let board = Board::take().unwrap();
     let (col, mut row) = board.display_pins.degrade();
 
     row[0].set_high().ok();
@@ -33,16 +34,16 @@ fn main() -> ! {
     let mut button_r = board.buttons.button_b.degrade();
 
     let mut tasks: [&mut dyn Task; 3] = [
-        &mut LedTask::new(col, &ticker, channel.get_receiver()),
+        &mut LedTask::new(col, &TICKER, channel.get_receiver()),
         &mut ButtonTask::new(
             button_l,
-            &ticker,
+            &TICKER,
             ButtonDirection::Left,
             channel.get_sender(),
         ),
         &mut ButtonTask::new(
             button_r,
-            &ticker,
+            &TICKER,
             ButtonDirection::Right,
             channel.get_sender(),
         ),

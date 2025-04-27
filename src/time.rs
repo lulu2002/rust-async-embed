@@ -11,6 +11,11 @@ use microbit::pac::{RTC0, interrupt};
 type TickInstant = Instant<u64, 1, 32768>;
 type TickDuration = Duration<u64, 1, 32768>;
 
+pub static TICKER: Ticker = Ticker {
+    ovf_count: AtomicU32::new(0),
+    rtc: Mutex::new(RefCell::new(None)),
+};
+
 pub struct Timer<'a> {
     end_time: TickInstant,
     ticker: &'a Ticker,
@@ -29,11 +34,6 @@ impl<'a> Timer<'a> {
     }
 }
 
-static TICKER: Ticker = Ticker {
-    ovf_count: AtomicU32::new(0),
-    rtc: Mutex::new(RefCell::new(None)),
-};
-
 pub struct Ticker {
     ovf_count: AtomicU32,
     rtc: Mutex<RefCell<Option<Rtc<RTC0>>>>,
@@ -43,6 +43,13 @@ impl Ticker {
     pub fn init(rtc0: RTC0, nvic: &mut NVIC) {
         let mut rtc = Rtc::new(rtc0, 0).unwrap();
         rtc.enable_counter();
+
+        #[cfg(feature = "trigger_overflow")]
+        {
+            rtc.trigger_overflow();
+            while rtc.get_counter() == 0 {}
+        }
+
         rtc.enable_event(RtcInterrupt::Overflow);
         rtc.enable_interrupt(RtcInterrupt::Overflow, Some(nvic));
         critical_section::with(|cs| TICKER.rtc.replace(cs, Some(rtc)));
@@ -80,5 +87,7 @@ fn RTC0() {
             rtc.reset_event(RtcInterrupt::Overflow);
             TICKER.ovf_count.fetch_add(1, Ordering::Relaxed);
         }
+
+        let _ = rtc.is_event_triggered(RtcInterrupt::Overflow);
     })
 }

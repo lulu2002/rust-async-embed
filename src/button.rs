@@ -11,16 +11,16 @@ pub enum ButtonDirection {
     Right,
 }
 
-pub enum ButtonState {
+pub enum ButtonState<'a> {
     WaitForPress,
-    Debounce(Timer),
+    Debounce(Timer<'a>),
 }
 
 pub struct ButtonTask<'a> {
     pin: Pin<Input<Floating>>,
     ticker: &'a Ticker,
     direction: ButtonDirection,
-    state: ButtonState,
+    state: ButtonState<'a>,
     sender: Sender<'a, ButtonDirection>,
 }
 

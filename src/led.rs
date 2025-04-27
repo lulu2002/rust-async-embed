@@ -23,6 +23,27 @@ pub struct LedTask<'a> {
     receiver: Receiver<'a, ButtonDirection>,
 }
 
+impl<'a> Task for LedTask<'a> {
+    fn poll(&mut self) {
+        match self.state {
+            LedState::Toggle => {
+                self.toggle();
+                self.state = LedState::Wait(Timer::new(500.millis(), &self.ticker))
+            }
+            LedState::Wait(ref timer) => {
+                if timer.is_ready() {
+                    self.state = LedState::Toggle
+                }
+
+                if let Some(direction) = self.receiver.receive() {
+                    self.shift(direction);
+                    self.state = LedState::Toggle;
+                }
+            }
+        }
+    }
+}
+
 impl<'a> LedTask<'a> {
     pub fn new(
         col: [Pin<Output<PushPull>>; 5],
@@ -36,6 +57,22 @@ impl<'a> LedTask<'a> {
             state: LedState::Toggle,
             receiver,
         }
+    }
+
+    fn toggle(&mut self) {
+        rprintln!("Blinking LED {}", self.active_col);
+
+        #[cfg(feature = "trigger_overflow")]
+        {
+            let time = self.ticker.now();
+            rprintln!(
+                "time: 0x{:x} ticks, {} ms",
+                time.ticks(),
+                time.duration_since_epoch().to_millis()
+            )
+        }
+
+        self.col[self.active_col].toggle().ok();
     }
 
     fn shift(&mut self, direction: ButtonDirection) {
@@ -53,27 +90,5 @@ impl<'a> LedTask<'a> {
         };
 
         self.col[self.active_col].set_high().ok();
-    }
-}
-
-impl<'a> Task for LedTask<'a> {
-    fn poll(&mut self) {
-        match self.state {
-            LedState::Toggle => {
-                rprintln!("Blinking LED {}", self.active_col);
-                self.col[self.active_col].toggle().ok();
-                self.state = LedState::Wait(Timer::new(500.millis(), &self.ticker))
-            }
-            LedState::Wait(ref timer) => {
-                if timer.is_ready() {
-                    self.state = LedState::Toggle
-                }
-
-                if let Some(direction) = self.receiver.receive() {
-                    self.shift(direction);
-                    self.state = LedState::Toggle;
-                }
-            }
-        }
     }
 }
