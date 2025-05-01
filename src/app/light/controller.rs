@@ -43,5 +43,6 @@ impl<'a> LedController<'a> {
 
     pub fn shift(&mut self, dir: ButtonDirection) {
         self.matrix.shift(dir);
+        self.state = LedState::Toggle;
     }
 }
