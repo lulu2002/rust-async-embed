@@ -1,6 +1,7 @@
 use crate::app::button::ButtonDirection;
 use crate::app::channel::Receiver;
 use crate::app::future::{OurFuture, Poll};
+use crate::app::ticker::Ticker;
 use crate::app::time::Timer;
 use embedded_hal::digital::{OutputPin, StatefulOutputPin};
 use fugit::ExtU64;
@@ -9,7 +10,6 @@ use microbit::{
     hal::gpio::{Output, Pin, PushPull},
 };
 use rtt_target::rprintln;
-use crate::app::ticker::Ticker;
 
 pub enum LedState<'a> {
     Toggle,
@@ -34,13 +34,13 @@ impl<'a> OurFuture for LedTask<'a> {
                     self.toggle();
                     self.state = LedState::Wait(Timer::new(500.millis(), &self.ticker))
                 }
-                LedState::Wait(ref timer) => {
-                    if timer.is_ready() {
+                LedState::Wait(ref mut timer) => {
+                    if let Poll::Ready(_) = timer.poll(task_id) {
                         self.state = LedState::Toggle;
                         continue;
                     }
 
-                    if let Some(direction) = self.receiver.receive() {
+                    if let Poll::Ready(direction) = self.receiver.poll(task_id) {
                         self.shift(direction);
                         self.state = LedState::Toggle;
                         continue;

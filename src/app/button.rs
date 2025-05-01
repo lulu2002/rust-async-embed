@@ -57,8 +57,8 @@ impl<'a> OurFuture for ButtonTask<'a> {
                         continue;
                     }
                 }
-                ButtonState::Debounce(ref timer) => {
-                    if timer.is_ready() {
+                ButtonState::Debounce(ref mut timer) => {
+                    if let Poll::Ready(_) = timer.poll(task_id) {
                         self.state = ButtonState::WaitForRelease;
                         continue;
                     }

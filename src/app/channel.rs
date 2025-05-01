@@ -1,13 +1,18 @@
+use crate::app::future::{OurFuture, Poll};
+use crate::executor::wake_task;
 use core::cell::Cell;
+use rtt_target::rprintln;
 
 pub struct Channel<T> {
     item: Cell<Option<T>>,
+    task_id: Cell<Option<usize>>,
 }
 
 impl<T> Channel<T> {
     pub fn new() -> Self {
         Self {
             item: Cell::new(None),
+            task_id: Cell::new(None),
         }
     }
 
@@ -16,16 +21,32 @@ impl<T> Channel<T> {
     }
 
     pub fn get_receiver(&self) -> Receiver<T> {
-        Receiver { channel: self }
+        Receiver {
+            channel: self,
+            state: ReceiverState::Init,
+        }
     }
 
-    pub fn send(&self, item: T) {
+    fn send(&self, item: T) {
         self.item.replace(Some(item));
+
+        if let Some(task_id) = self.task_id.get() {
+            wake_task(task_id)
+        }
     }
 
-    pub fn receive(&self) -> Option<T> {
+    fn receive(&self) -> Option<T> {
         self.item.take()
     }
+
+    fn register(&self, task_id: usize) {
+        self.task_id.replace(Some(task_id));
+    }
+}
+
+enum ReceiverState {
+    Init,
+    Wait,
 }
 
 pub struct Sender<'a, T> {
@@ -40,10 +61,23 @@ impl<T> Sender<'_, T> {
 
 pub struct Receiver<'a, T> {
     channel: &'a Channel<T>,
+    state: ReceiverState,
 }
 
-impl<'a, T> Receiver<'a, T> {
-    pub fn receive(&self) -> Option<T> {
-        self.channel.receive()
+impl<'a, T> OurFuture for Receiver<'a, T> {
+    type Output = T;
+
+    fn poll(&mut self, task_id: usize) -> Poll<Self::Output> {
+        match self.state {
+            ReceiverState::Init => {
+                self.channel.register(task_id);
+                self.state = ReceiverState::Wait;
+                Poll::Pending
+            }
+            ReceiverState::Wait => match self.channel.receive() {
+                Some(item) => Poll::Ready(item),
+                None => Poll::Pending,
+            },
+        }
     }
 }

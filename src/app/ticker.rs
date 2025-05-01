@@ -10,18 +10,20 @@ use microbit::pac::RTC0;
 pub type TickInstant = Instant<u64, 1, 32768>;
 pub type TickDuration = Duration<u64, 1, 32768>;
 
-pub static TICKER: Ticker = Ticker {
-    ovf_count: AtomicU32::new(0),
-    rtc: Mutex::new(RefCell::new(None)),
-};
-
 pub struct Ticker {
     ovf_count: AtomicU32,
     rtc: Mutex<RefCell<Option<Rtc<RTC0>>>>,
 }
 
 impl Ticker {
-    pub fn init(rtc0: RTC0, nvic: &mut NVIC) {
+    pub const fn new_raw() -> Self {
+        Self {
+            rtc: Mutex::new(RefCell::new(None)),
+            ovf_count: AtomicU32::new(0),
+        }
+    }
+
+    pub fn init(&self, rtc0: RTC0, nvic: &mut NVIC) {
         let mut rtc = Rtc::new(rtc0, 0).unwrap();
         rtc.enable_counter();
 
@@ -34,7 +36,7 @@ impl Ticker {
         rtc.enable_event(RtcInterrupt::Overflow);
         rtc.enable_interrupt(RtcInterrupt::Overflow, Some(nvic));
         rtc.enable_interrupt(RtcInterrupt::Compare0, Some(nvic));
-        critical_section::with(|cs| TICKER.rtc.replace(cs, Some(rtc)));
+        critical_section::with(|cs| self.rtc.replace(cs, Some(rtc)));
     }
 
     pub fn now(&self) -> TickInstant {
