@@ -1,21 +1,21 @@
 use crate::app::button::ButtonDirection;
 use crate::app::future::{OurFuture, Poll};
-use crate::app::light::matrix::LedMatrix;
+use crate::app::light::operator::LedOperator;
 use crate::app::light::types::LedState;
 use crate::app::ticker::Ticker;
 use crate::app::time::Timer;
 use fugit::ExtU64;
 
 pub struct LedController<'a> {
-    matrix: LedMatrix,
+    operator: &'a mut dyn LedOperator,
     ticker: &'a Ticker,
     state: LedState<'a>,
 }
 
 impl<'a> LedController<'a> {
-    pub fn new(matrix: LedMatrix, ticker: &'a Ticker) -> Self {
+    pub fn new(operator: &'a mut dyn LedOperator, ticker: &'a Ticker) -> Self {
         Self {
-            matrix,
+            operator,
             ticker,
             state: LedState::Toggle,
         }
@@ -25,7 +25,7 @@ impl<'a> LedController<'a> {
         loop {
             match self.state {
                 LedState::Toggle => {
-                    self.matrix.toggle();
+                    self.operator.toggle();
                     self.state = LedState::Wait(Timer::new(500.millis(), self.ticker));
                     continue;
                 }
@@ -42,7 +42,7 @@ impl<'a> LedController<'a> {
     }
 
     pub fn shift(&mut self, dir: ButtonDirection) {
-        self.matrix.shift(dir);
+        self.operator.shift(dir);
         self.state = LedState::Toggle;
     }
 }

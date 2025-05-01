@@ -49,9 +49,11 @@ fn main() -> ! {
     let button_l = board.buttons.button_a.degrade();
     let button_r = board.buttons.button_b.degrade();
 
+    let mut matrix = LedMatrix::new(col);
+
     let mut tasks: [&mut dyn OurFuture<Output = ()>; 3] = [
         &mut LedTask::new(
-            LedController::new(LedMatrix::new(col), &TICKER),
+            LedController::new(&mut matrix, &TICKER),
             channel.get_receiver(),
         ),
         &mut ButtonTask::new(

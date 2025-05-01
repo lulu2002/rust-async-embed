@@ -1,4 +1,5 @@
 use crate::app::button::ButtonDirection;
+use crate::app::light::operator::LedOperator;
 use embedded_hal::digital::{OutputPin, StatefulOutputPin};
 use microbit::gpio::NUM_COLS;
 use microbit::hal::gpio::{Output, Pin, PushPull};
@@ -13,8 +14,10 @@ impl LedMatrix {
     pub fn new(col: [Pin<Output<PushPull>>; 5]) -> Self {
         Self { col, active_col: 0 }
     }
+}
 
-    pub fn toggle(&mut self) {
+impl LedOperator for LedMatrix {
+    fn toggle(&mut self) {
         rprintln!("Blinking LED {}", self.active_col);
 
         #[cfg(feature = "trigger_overflow")]
@@ -29,8 +32,7 @@ impl LedMatrix {
 
         self.col[self.active_col].toggle().ok();
     }
-
-    pub fn shift(&mut self, direction: ButtonDirection) {
+    fn shift(&mut self, direction: ButtonDirection) {
         self.col[self.active_col].set_high().ok();
         self.active_col = match direction {
             ButtonDirection::Left => match self.active_col {
