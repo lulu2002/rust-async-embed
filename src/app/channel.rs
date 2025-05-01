@@ -1,7 +1,6 @@
 use crate::app::future::{OurFuture, Poll};
 use crate::executor::wake_task;
 use core::cell::Cell;
-use rtt_target::rprintln;
 
 pub struct Channel<T> {
     item: Cell<Option<T>>,

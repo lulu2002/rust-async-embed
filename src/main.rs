@@ -10,7 +10,6 @@ use app::button::{ButtonDirection, ButtonTask};
 use app::channel::Channel;
 use app::future::OurFuture;
 use app::gpiote::InputChannel;
-use app::led::LedTask;
 use app::ticker::Ticker;
 use cortex_m_rt::entry;
 use embedded_hal::digital::OutputPin;
@@ -23,6 +22,9 @@ use rtt_target::{rprintln, rtt_init_print};
 pub static TICKER: Ticker = Ticker::new_raw();
 pub static WAKEUP_MANAGER: WakeupManager = WakeupManager::new(&TICKER);
 
+use crate::app::light::controller::LedController;
+use crate::app::light::matrix::LedMatrix;
+use app::light::task::LedTask;
 use core::panic::PanicInfo;
 
 #[panic_handler]
@@ -48,7 +50,10 @@ fn main() -> ! {
     let button_r = board.buttons.button_b.degrade();
 
     let mut tasks: [&mut dyn OurFuture<Output = ()>; 3] = [
-        &mut LedTask::new(col, &TICKER, channel.get_receiver()),
+        &mut LedTask::new(
+            LedController::new(LedMatrix::new(col), &TICKER),
+            channel.get_receiver(),
+        ),
         &mut ButtonTask::new(
             InputChannel::new(button_l, &gpiote),
             &TICKER,
