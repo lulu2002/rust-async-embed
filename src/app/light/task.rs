@@ -2,6 +2,7 @@ use crate::app::button::ButtonDirection;
 use crate::app::channel::Receiver;
 use crate::app::future::{OurFuture, Poll};
 use crate::app::light::controller::LedController;
+use rtt_target::rprintln;
 
 pub struct LedTask<'a> {
     controller: LedController<'a>,
@@ -22,6 +23,7 @@ impl<'a> OurFuture for LedTask<'a> {
 
     fn poll(&mut self, task_id: usize) -> Poll<Self::Output> {
         if let Poll::Ready(direction) = self.receiver.poll(task_id) {
+            rprintln!("Button press detected..");
             self.controller.shift(direction);
         }
 

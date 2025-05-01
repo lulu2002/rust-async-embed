@@ -31,7 +31,6 @@ impl LedMatrix {
     }
 
     pub fn shift(&mut self, direction: ButtonDirection) {
-        rprintln!("Button press detected..");
         self.col[self.active_col].set_high().ok();
         self.active_col = match direction {
             ButtonDirection::Left => match self.active_col {
