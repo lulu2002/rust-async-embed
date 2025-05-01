@@ -1,7 +1,7 @@
-use crate::button::ButtonDirection;
-use crate::channel::Receiver;
-use crate::task::Task;
-use crate::time::{Ticker, Timer};
+use crate::app::button::ButtonDirection;
+use crate::app::channel::Receiver;
+use crate::app::future::{OurFuture, Poll};
+use crate::app::time::Timer;
 use embedded_hal::digital::{OutputPin, StatefulOutputPin};
 use fugit::ExtU64;
 use microbit::{
@@ -9,6 +9,7 @@ use microbit::{
     hal::gpio::{Output, Pin, PushPull},
 };
 use rtt_target::rprintln;
+use crate::app::ticker::Ticker;
 
 pub enum LedState<'a> {
     Toggle,
@@ -23,24 +24,32 @@ pub struct LedTask<'a> {
     receiver: Receiver<'a, ButtonDirection>,
 }
 
-impl<'a> Task for LedTask<'a> {
-    fn poll(&mut self) {
-        match self.state {
-            LedState::Toggle => {
-                self.toggle();
-                self.state = LedState::Wait(Timer::new(500.millis(), &self.ticker))
-            }
-            LedState::Wait(ref timer) => {
-                if timer.is_ready() {
-                    self.state = LedState::Toggle
-                }
+impl<'a> OurFuture for LedTask<'a> {
+    type Output = ();
 
-                if let Some(direction) = self.receiver.receive() {
-                    self.shift(direction);
-                    self.state = LedState::Toggle;
+    fn poll(&mut self, task_id: usize) -> Poll<Self::Output> {
+        loop {
+            match self.state {
+                LedState::Toggle => {
+                    self.toggle();
+                    self.state = LedState::Wait(Timer::new(500.millis(), &self.ticker))
+                }
+                LedState::Wait(ref timer) => {
+                    if timer.is_ready() {
+                        self.state = LedState::Toggle;
+                        continue;
+                    }
+
+                    if let Some(direction) = self.receiver.receive() {
+                        self.shift(direction);
+                        self.state = LedState::Toggle;
+                        continue;
+                    }
+                    break;
                 }
             }
         }
+        Poll::Pending
     }
 }
 
