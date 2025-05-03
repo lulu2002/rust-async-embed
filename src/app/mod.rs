@@ -5,3 +5,4 @@ pub mod light;
 pub mod ticker;
 pub mod time;
 pub mod types;
+pub mod sound;
