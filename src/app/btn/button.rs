@@ -1,3 +1,4 @@
+use crate::app::btn::types::{ButtonDirection, ButtonState};
 use crate::app::channel::Sender;
 use crate::app::future::{OurFuture, Poll};
 use crate::app::gpiote::InputChannel;
@@ -6,21 +7,9 @@ use crate::app::time::Timer;
 use embedded_hal::digital::PinState;
 use fugit::ExtU64;
 
-#[derive(Copy, Clone)]
-pub enum ButtonDirection {
-    Left,
-    Right,
-}
-
-pub enum ButtonState<'a> {
-    WaitForPress,
-    Debounce(Timer<'a>),
-    WaitForRelease,
-}
-
 pub struct ButtonTask<'a> {
-    input: InputChannel,
     ticker: &'a Ticker,
+    input: InputChannel,
     direction: ButtonDirection,
     state: ButtonState<'a>,
     sender: Sender<'a, ButtonDirection>,

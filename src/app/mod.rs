@@ -1,4 +1,4 @@
-pub mod button;
+pub mod btn;
 pub mod channel;
 pub mod future;
 pub mod gpiote;

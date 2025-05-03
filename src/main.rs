@@ -6,17 +6,17 @@ mod executor;
 mod wakeup;
 
 use crate::wakeup::WakeupManager;
-use app::button::{ButtonDirection, ButtonTask};
+use app::btn::button::ButtonTask;
 use app::channel::Channel;
 use app::future::OurFuture;
 use app::gpiote::InputChannel;
 use app::ticker::Ticker;
 use cortex_m_rt::entry;
 use embedded_hal::digital::OutputPin;
-use microbit::Board;
 use microbit::hal::gpiote::Gpiote;
 use microbit::hal::rtc::RtcInterrupt;
 use microbit::pac::interrupt;
+use microbit::Board;
 use rtt_target::{rprintln, rtt_init_print};
 
 pub static TICKER: Ticker = Ticker::new_raw();
@@ -26,6 +26,7 @@ use crate::app::light::controller::LedController;
 use crate::app::light::matrix::LedMatrix;
 use app::light::task::LedTask;
 use core::panic::PanicInfo;
+use app::btn::types::ButtonDirection;
 
 #[panic_handler]
 fn panic(_info: &PanicInfo) -> ! {

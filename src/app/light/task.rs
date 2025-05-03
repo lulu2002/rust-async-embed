@@ -1,4 +1,4 @@
-use crate::app::button::ButtonDirection;
+use crate::app::btn::types::ButtonDirection;
 use crate::app::channel::Receiver;
 use crate::app::future::{OurFuture, Poll};
 use crate::app::light::controller::LedController;
