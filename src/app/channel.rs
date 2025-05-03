@@ -1,17 +1,18 @@
-use crate::app::future::{OurFuture, Poll};
-use crate::executor::wake_task;
-use core::cell::Cell;
+use crate::executor::{ExtWaker, wake_task};
+use core::cell::{Cell, RefCell};
+use core::future::poll_fn;
+use core::task::{Poll, Waker};
 
 pub struct Channel<T> {
     item: Cell<Option<T>>,
-    task_id: Cell<Option<usize>>,
+    waker: RefCell<Option<Waker>>,
 }
 
 impl<T> Channel<T> {
     pub fn new() -> Self {
         Self {
             item: Cell::new(None),
-            task_id: Cell::new(None),
+            waker: RefCell::new(None),
         }
     }
 
@@ -29,8 +30,8 @@ impl<T> Channel<T> {
     fn send(&self, item: T) {
         self.item.replace(Some(item));
 
-        if let Some(task_id) = self.task_id.get() {
-            wake_task(task_id)
+        if let Some(waker) = self.waker.borrow().as_ref() {
+            waker.wake_by_ref()
         }
     }
 
@@ -38,8 +39,8 @@ impl<T> Channel<T> {
         self.item.take()
     }
 
-    fn register(&self, task_id: usize) {
-        self.task_id.replace(Some(task_id));
+    fn register(&self, waker: Waker) {
+        self.waker.replace(Some(waker));
     }
 }
 
@@ -63,13 +64,11 @@ pub struct Receiver<'a, T> {
     state: ReceiverState,
 }
 
-impl<'a, T> OurFuture for Receiver<'a, T> {
-    type Output = T;
-
-    fn poll(&mut self, task_id: usize) -> Poll<Self::Output> {
-        match self.state {
+impl<T> Receiver<'_, T> {
+    pub async fn receive(&mut self) -> T {
+        poll_fn(|cx| match self.state {
             ReceiverState::Init => {
-                self.channel.register(task_id);
+                self.channel.register(cx.waker().clone());
                 self.state = ReceiverState::Wait;
                 Poll::Pending
             }
@@ -77,6 +76,7 @@ impl<'a, T> OurFuture for Receiver<'a, T> {
                 Some(item) => Poll::Ready(item),
                 None => Poll::Pending,
             },
-        }
+        })
+        .await
     }
 }

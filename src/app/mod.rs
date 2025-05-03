@@ -1,7 +1,7 @@
 pub mod btn;
 pub mod channel;
-pub mod future;
 pub mod gpiote;
 pub mod light;
 pub mod ticker;
-mod time;
+pub mod time;
+pub mod types;

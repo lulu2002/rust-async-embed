@@ -1,11 +1,12 @@
-use crate::executor::wake_task;
-use crate::app::future::{OurFuture, Poll};
+use crate::executor::{ExtWaker, wake_task};
+use core::future::poll_fn;
 use core::sync::atomic::{AtomicUsize, Ordering};
+use core::task::Poll;
 use cortex_m::peripheral::NVIC;
 use embedded_hal::digital::{InputPin, PinState};
 use microbit::hal::gpio::{Floating, Input, Pin};
 use microbit::hal::gpiote::Gpiote;
-use microbit::pac::{interrupt, Interrupt};
+use microbit::pac::{Interrupt, interrupt};
 
 const MAX_CHANNELS_USED: usize = 2;
 static NEXT_CHANNEL: AtomicUsize = AtomicUsize::new(0);
@@ -13,7 +14,6 @@ static NEXT_CHANNEL: AtomicUsize = AtomicUsize::new(0);
 pub struct InputChannel {
     pin: Pin<Input<Floating>>,
     channel_id: usize,
-    ready_state: PinState,
 }
 
 impl InputChannel {
@@ -27,28 +27,19 @@ impl InputChannel {
         channel.input_pin(&pin).toggle().enable_interrupt();
         unsafe { NVIC::unmask(Interrupt::GPIOTE) }
 
-        Self {
-            pin,
-            channel_id,
-            ready_state: PinState::Low,
-        }
+        Self { pin, channel_id }
     }
 
-    pub fn set_ready_state(&mut self, ready_state: PinState) {
-        self.ready_state = ready_state;
-    }
-}
+    pub async fn wait_for(&mut self, ready_state: PinState) {
+        poll_fn(|ctx| {
+            if ready_state == PinState::from(self.pin.is_high().unwrap()) {
+                return Poll::Ready(());
+            }
 
-impl OurFuture for InputChannel {
-    type Output = ();
-
-    fn poll(&mut self, task_id: usize) -> Poll<Self::Output> {
-        if self.ready_state == PinState::from(self.pin.is_high().unwrap()) {
-            return Poll::Ready(());
-        }
-
-        WAKE_TASKS[self.channel_id].store(task_id, Ordering::Relaxed);
-        Poll::Pending
+            WAKE_TASKS[self.channel_id].store(ctx.waker().task_id(), Ordering::Relaxed);
+            Poll::Pending
+        })
+        .await
     }
 }
 
@@ -69,6 +60,6 @@ fn GPIOTE() {
             }
         }
     }
-    
+
     let _ = gpiote.events_in[0].read().bits();
 }

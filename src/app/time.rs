@@ -1,6 +1,8 @@
-use crate::app::future::{OurFuture, Poll};
 use crate::app::ticker::{TickDuration, TickInstant, Ticker};
+use crate::executor::ExtWaker;
 use crate::WAKEUP_MANAGER;
+use core::pin::Pin;
+use core::task::{Context, Poll};
 
 pub struct Timer<'a> {
     ticker: &'a Ticker,
@@ -28,13 +30,13 @@ enum TimerState {
     Wait,
 }
 
-impl<'a> OurFuture for Timer<'a> {
+impl<'a> Future for Timer<'a> {
     type Output = ();
 
-    fn poll(&mut self, task_id: usize) -> Poll<Self::Output> {
+    fn poll(mut self: Pin<&mut Self>, ctx: &mut Context<'_>) -> Poll<Self::Output> {
         match self.state {
             TimerState::Init => {
-                self.register(task_id);
+                self.register(ctx.waker().task_id());
                 self.state = TimerState::Wait;
                 Poll::Pending
             }
@@ -47,4 +49,8 @@ impl<'a> OurFuture for Timer<'a> {
             }
         }
     }
+}
+
+pub async fn delay(duration: TickDuration, ticker: &Ticker) {
+    Timer::new(duration, ticker).await
 }
